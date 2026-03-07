@@ -48,17 +48,44 @@ function formatDuration(ms) {
   return `${hours}h ${minutes}m`
 }
 
+const STORAGE_KEY = 'timeapp_data'
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    return {
+      isClockedIn: data.isClockedIn ?? false,
+      currentClockIn: data.currentClockIn ? new Date(data.currentClockIn) : null,
+      entries: (data.entries ?? []).map((e) => ({
+        clockIn: new Date(e.clockIn),
+        clockOut: new Date(e.clockOut),
+      })),
+    }
+  } catch {
+    return null
+  }
+}
+
 export default function App() {
   const [now, setNow] = useState(new Date())
-  const [isClockedIn, setIsClockedIn] = useState(false)
-  const [currentClockIn, setCurrentClockIn] = useState(null)
-  const [entries, setEntries] = useState([])
+  const [isClockedIn, setIsClockedIn] = useState(() => loadFromStorage()?.isClockedIn ?? false)
+  const [currentClockIn, setCurrentClockIn] = useState(() => loadFromStorage()?.currentClockIn ?? null)
+  const [entries, setEntries] = useState(() => loadFromStorage()?.entries ?? [])
   const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ isClockedIn, currentClockIn, entries })
+    )
+  }, [isClockedIn, currentClockIn, entries])
 
   const handleToggle = useCallback(() => {
     const timestamp = new Date()
@@ -111,6 +138,7 @@ export default function App() {
     setCurrentClockIn(null)
     setIsClockedIn(false)
     setShowConfirm(false)
+    localStorage.removeItem(STORAGE_KEY)
   }, [])
 
   return (
@@ -120,7 +148,7 @@ export default function App() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">TimeApp</h1>
+            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.2</span></h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
         </div>
