@@ -69,11 +69,10 @@ function loadFromStorage() {
 }
 
 export default function App() {
-  const saved = loadFromStorage()
   const [now, setNow] = useState(new Date())
-  const [isClockedIn, setIsClockedIn] = useState(saved?.isClockedIn ?? false)
-  const [currentClockIn, setCurrentClockIn] = useState(saved?.currentClockIn ?? null)
-  const [entries, setEntries] = useState(saved?.entries ?? [])
+  const [isClockedIn, setIsClockedIn] = useState(() => loadFromStorage()?.isClockedIn ?? false)
+  const [currentClockIn, setCurrentClockIn] = useState(() => loadFromStorage()?.currentClockIn ?? null)
+  const [entries, setEntries] = useState(() => loadFromStorage()?.entries ?? [])
   const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
@@ -149,7 +148,7 @@ export default function App() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">TimeApp</h1>
+            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.2</span></h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
         </div>
