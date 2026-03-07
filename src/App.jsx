@@ -48,17 +48,45 @@ function formatDuration(ms) {
   return `${hours}h ${minutes}m`
 }
 
+const STORAGE_KEY = 'timeapp_data'
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    return {
+      isClockedIn: data.isClockedIn ?? false,
+      currentClockIn: data.currentClockIn ? new Date(data.currentClockIn) : null,
+      entries: (data.entries ?? []).map((e) => ({
+        clockIn: new Date(e.clockIn),
+        clockOut: new Date(e.clockOut),
+      })),
+    }
+  } catch {
+    return null
+  }
+}
+
 export default function App() {
+  const saved = loadFromStorage()
   const [now, setNow] = useState(new Date())
-  const [isClockedIn, setIsClockedIn] = useState(false)
-  const [currentClockIn, setCurrentClockIn] = useState(null)
-  const [entries, setEntries] = useState([])
+  const [isClockedIn, setIsClockedIn] = useState(saved?.isClockedIn ?? false)
+  const [currentClockIn, setCurrentClockIn] = useState(saved?.currentClockIn ?? null)
+  const [entries, setEntries] = useState(saved?.entries ?? [])
   const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ isClockedIn, currentClockIn, entries })
+    )
+  }, [isClockedIn, currentClockIn, entries])
 
   const handleToggle = useCallback(() => {
     const timestamp = new Date()
@@ -111,6 +139,7 @@ export default function App() {
     setCurrentClockIn(null)
     setIsClockedIn(false)
     setShowConfirm(false)
+    localStorage.removeItem(STORAGE_KEY)
   }, [])
 
   return (
