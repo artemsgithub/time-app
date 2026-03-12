@@ -51,6 +51,33 @@ function formatDuration(ms) {
   return `${hours}h ${minutes}m`
 }
 
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function getDateKey(date) {
+  return (
+    `${date.getFullYear()}-` +
+    `${String(date.getMonth() + 1).padStart(2, '0')}-` +
+    `${String(date.getDate()).padStart(2, '0')}`
+  )
+}
+
+function getWeekStart(date) {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const day = d.getDay() // 0=Sun
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day))
+  return d
+}
+
+function getWeekDays(date) {
+  const monday = getWeekStart(date)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(d.getDate() + i)
+    return d
+  })
+}
+
 function toDatetimeLocal(date) {
   const pad = (n) => String(n).padStart(2, '0')
   return (
@@ -125,6 +152,17 @@ export default function App() {
   const currentSessionMs =
     isClockedIn && currentClockIn ? now.getTime() - currentClockIn.getTime() : 0
 
+  const todayKey = getDateKey(now)
+
+  const dailyTotals = entries.reduce((acc, e) => {
+    const key = getDateKey(e.clockIn)
+    acc[key] = (acc[key] || 0) + (e.clockOut.getTime() - e.clockIn.getTime())
+    return acc
+  }, {})
+
+  const weekDays = getWeekDays(now)
+  const weekTotalMs = weekDays.reduce((sum, d) => sum + (dailyTotals[getDateKey(d)] || 0), 0)
+
   const handleExportCSV = useCallback(() => {
     const rows = [['Date', 'Clock In', 'Clock Out', 'Total Hours']]
     entries.forEach((e) => {
@@ -137,6 +175,25 @@ export default function App() {
     })
     rows.push([])
     rows.push(['', '', 'Grand Total', formatHours(totalMs)])
+
+    // Weekly summary section
+    const wDays = getWeekDays(new Date())
+    const dTotals = entries.reduce((acc, e) => {
+      const key = getDateKey(e.clockIn)
+      acc[key] = (acc[key] || 0) + (e.clockOut.getTime() - e.clockIn.getTime())
+      return acc
+    }, {})
+    const wTotalMs = wDays.reduce((sum, d) => sum + (dTotals[getDateKey(d)] || 0), 0)
+
+    rows.push([])
+    rows.push([`Weekly Summary — Week of ${formatShortDate(wDays[0])} – ${formatShortDate(wDays[6])}`])
+    rows.push(['Day', 'Date', 'Total Hours'])
+    wDays.forEach((d, i) => {
+      const ms = dTotals[getDateKey(d)] || 0
+      rows.push([DAY_NAMES[i], formatShortDate(d), ms > 0 ? formatHours(ms) : '0.00'])
+    })
+    rows.push([])
+    rows.push(['', 'Week Total', formatHours(wTotalMs)])
 
     const csv = rows.map((r) => r.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -214,7 +271,7 @@ export default function App() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.4.2</span></h1>
+            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.5</span></h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
         </div>
@@ -290,6 +347,64 @@ export default function App() {
             <Trash2 className="w-4 h-4" />
             Clear Data
           </button>
+        </div>
+
+        {/* Weekly Summary */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Weekly Summary</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {formatShortDate(weekDays[0])} – {formatShortDate(weekDays[6])}
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-left text-gray-500 uppercase text-xs tracking-wider">
+                  <th className="px-6 py-3">Day</th>
+                  <th className="px-6 py-3">Date</th>
+                  <th className="px-6 py-3 text-right">Total Hours</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {weekDays.map((d, i) => {
+                  const key = getDateKey(d)
+                  const isToday = key === todayKey
+                  const isFuture = key > todayKey
+                  const ms = dailyTotals[key] || 0
+                  return (
+                    <tr
+                      key={key}
+                      className={
+                        isToday
+                          ? 'bg-blue-50'
+                          : 'hover:bg-gray-50'
+                      }
+                    >
+                      <td className={`px-6 py-3 font-medium ${isToday ? 'text-blue-700' : 'text-gray-700'}`}>
+                        {DAY_NAMES[i]}
+                        {isToday && <span className="ml-2 text-xs font-normal text-blue-400">today</span>}
+                      </td>
+                      <td className={`px-6 py-3 ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>
+                        {formatShortDate(d)}
+                      </td>
+                      <td className={`px-6 py-3 text-right font-mono ${ms > 0 ? (isToday ? 'text-blue-700 font-semibold' : 'text-gray-900') : 'text-gray-300'}`}>
+                        {ms > 0 ? formatHours(ms) : (isFuture ? '—' : '0.00')}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-50 font-semibold">
+                  <td colSpan={2} className="px-6 py-3 text-gray-900">Week Total</td>
+                  <td className="px-6 py-3 text-right font-mono text-blue-600">
+                    {formatHours(weekTotalMs)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
 
         {/* Confirmation Dialog */}
