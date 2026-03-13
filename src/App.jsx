@@ -279,7 +279,7 @@ export default function App() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.5.1</span></h1>
+            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.5.2</span></h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
         </div>
@@ -517,10 +517,10 @@ export default function App() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 text-left text-gray-500 uppercase text-xs tracking-wider">
-                    <th className="px-6 py-3">Date</th>
-                    <th className="px-6 py-3">Clock In</th>
-                    <th className="px-6 py-3">Clock Out</th>
-                    <th className="px-6 py-3 text-right">Total Hours</th>
+                    <th className="px-3 py-3">Date</th>
+                    <th className="px-3 py-3">Clock In</th>
+                    <th className="px-3 py-3">Clock Out</th>
+                    <th className="px-3 py-3 text-right">Total Hours</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -572,16 +572,16 @@ export default function App() {
                     const sessionMs = e.clockOut.getTime() - e.clockIn.getTime()
                     return (
                       <tr key={i} className="hover:bg-gray-50">
-                        <td className="px-6 py-3 text-gray-900">
+                        <td className="px-3 py-3 text-gray-900">
                           {formatShortDate(e.clockIn)}
                         </td>
-                        <td className="px-6 py-3 text-gray-700">
+                        <td className="px-3 py-3 text-gray-700">
                           {formatTableTime(e.clockIn)}
                         </td>
-                        <td className="px-6 py-3 text-gray-700">
+                        <td className="px-3 py-3 text-gray-700">
                           {formatTableTime(e.clockOut)}
                         </td>
-                        <td className="px-6 py-3 text-right font-mono text-gray-900">
+                        <td className="px-3 py-3 text-right font-mono text-gray-900">
                           {formatHours(sessionMs)}
                         </td>
                       </tr>
@@ -592,11 +592,11 @@ export default function App() {
                   <tr className="bg-gray-50 font-semibold">
                     <td
                       colSpan={3}
-                      className="px-6 py-3 text-gray-900"
+                      className="px-3 py-3 text-gray-900"
                     >
                       Grand Total
                     </td>
-                    <td className="px-6 py-3 text-right font-mono text-blue-600">
+                    <td className="px-3 py-3 text-right font-mono text-blue-600">
                       {formatHours(totalMs)}
                     </td>
                   </tr>
