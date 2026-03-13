@@ -31,9 +31,17 @@ function formatDate(date) {
 
 function formatShortDate(date) {
   return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    year: '2-digit',
+    month: 'numeric',
+    day: 'numeric',
+  })
+}
+
+function formatTableTime(date) {
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
   })
 }
 
@@ -271,7 +279,7 @@ export default function App() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.5</span></h1>
+            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.5.1</span></h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
         </div>
@@ -568,10 +576,10 @@ export default function App() {
                           {formatShortDate(e.clockIn)}
                         </td>
                         <td className="px-6 py-3 text-gray-700">
-                          {formatTime(e.clockIn)}
+                          {formatTableTime(e.clockIn)}
                         </td>
                         <td className="px-6 py-3 text-gray-700">
-                          {formatTime(e.clockOut)}
+                          {formatTableTime(e.clockOut)}
                         </td>
                         <td className="px-6 py-3 text-right font-mono text-gray-900">
                           {formatHours(sessionMs)}
