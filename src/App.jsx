@@ -231,7 +231,37 @@ export default function App() {
     return key >= weekStartKey && key <= weekEndKey
   })
 
-  const handleExportCSV = useCallback(() => {
+  const downloadCSV = (rows, filename) => {
+    const csv = rows.map((r) => r.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExportWeekCSV = useCallback(() => {
+    const rows = [
+      [`Week of ${formatShortDate(weekDays[0])} – ${formatShortDate(weekDays[6])}`],
+      [],
+      ['Date', 'Clock In', 'Clock Out', 'Total Hours'],
+    ]
+    currentWeekEntries.forEach((e) => {
+      rows.push([
+        formatShortDate(e.clockIn),
+        formatTime(e.clockIn),
+        formatTime(e.clockOut),
+        formatHours(e.clockOut.getTime() - e.clockIn.getTime()),
+      ])
+    })
+    rows.push([])
+    rows.push(['', '', 'Week Total', formatHours(weekTotalMs)])
+    downloadCSV(rows, `time-log-week-${weekStartKey}.csv`)
+  }, [currentWeekEntries, weekTotalMs, weekDays, weekStartKey])
+
+  const handleExportAllCSV = useCallback(() => {
     const rows = [['Date', 'Clock In', 'Clock Out', 'Total Hours']]
     entries.forEach((e) => {
       rows.push([
@@ -244,7 +274,6 @@ export default function App() {
     rows.push([])
     rows.push(['', '', 'Grand Total', formatHours(totalMs)])
 
-    // Weekly summary section
     const wDays = getWeekDays(new Date())
     const dTotals = entries.reduce((acc, e) => {
       const key = getDateKey(e.clockIn)
@@ -262,16 +291,29 @@ export default function App() {
     })
     rows.push([])
     rows.push(['', 'Week Total', formatHours(wTotalMs)])
-
-    const csv = rows.map((r) => r.join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `time-log-${formatShortDate(new Date()).replace(/\//g, '-')}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadCSV(rows, `time-log-all-${formatShortDate(new Date()).replace(/\//g, '-')}.csv`)
   }, [entries, totalMs])
+
+  const handleExportMonthCSV = useCallback((month) => {
+    const rows = [`Month: ${month.label}`, []]
+    month.weeks.forEach((week) => {
+      rows.push([`Week: ${formatWeekLabel(week.weekStart)}`])
+      rows.push(['Date', 'Clock In', 'Clock Out', 'Total Hours'])
+      week.entries.forEach((e) => {
+        rows.push([
+          formatShortDate(e.clockIn),
+          formatTime(e.clockIn),
+          formatTime(e.clockOut),
+          formatHours(e.clockOut.getTime() - e.clockIn.getTime()),
+        ])
+      })
+      rows.push([])
+      rows.push(['', '', 'Week Total', formatHours(week.totalMs)])
+      rows.push([])
+    })
+    rows.push(['', '', 'Month Total', formatHours(month.totalMs)])
+    downloadCSV(rows, `time-log-${month.label.toLowerCase().replace(' ', '-')}.csv`)
+  }, [])
 
   const handleEditConfirm = useCallback(() => {
     const indices = []
@@ -384,7 +426,7 @@ export default function App() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.6</span></h1>
+            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.6.1</span></h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
         </div>
@@ -453,20 +495,12 @@ export default function App() {
             History
           </button>
           <button
-            onClick={handleExportCSV}
-            disabled={entries.length === 0}
+            onClick={handleExportWeekCSV}
+            disabled={currentWeekEntries.length === 0}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             <Download className="w-4 h-4" />
-            Export to CSV
-          </button>
-          <button
-            onClick={() => setShowConfirm(true)}
-            disabled={entries.length === 0 && !isClockedIn}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4" />
-            Clear Data
+            Export Week
           </button>
         </div>
 
@@ -594,12 +628,22 @@ export default function App() {
                   <History className="w-5 h-5 text-indigo-600" />
                   <h2 className="text-lg font-semibold text-gray-900">History</h2>
                 </div>
-                <button
-                  onClick={() => setShowHistory(false)}
-                  className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleExportAllCSV}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer"
+                    title="Export all data to CSV"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Export All
+                  </button>
+                  <button
+                    onClick={() => setShowHistory(false)}
+                    className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               <div className="max-h-[70vh] overflow-y-auto">
@@ -613,18 +657,27 @@ export default function App() {
                     {historyData.map((month) => (
                       <div key={month.key}>
                         {/* Month row */}
-                        <button
-                          onClick={() => toggleMonth(month.key)}
-                          className="w-full flex items-center gap-3 px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer text-left"
-                        >
-                          {openMonths.has(month.key) ? (
-                            <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
-                          )}
-                          <span className="font-semibold text-gray-900 flex-1">{month.label}</span>
-                          <span className="font-mono text-sm text-indigo-600">{formatHours(month.totalMs)} hrs</span>
-                        </button>
+                        <div className="flex items-center border-b border-gray-100 last:border-0">
+                          <button
+                            onClick={() => toggleMonth(month.key)}
+                            className="flex-1 flex items-center gap-3 px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer text-left"
+                          >
+                            {openMonths.has(month.key) ? (
+                              <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                            )}
+                            <span className="font-semibold text-gray-900 flex-1">{month.label}</span>
+                            <span className="font-mono text-sm text-indigo-600">{formatHours(month.totalMs)} hrs</span>
+                          </button>
+                          <button
+                            onClick={() => handleExportMonthCSV(month)}
+                            className="p-2 mr-3 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer shrink-0"
+                            title={`Export ${month.label} to CSV`}
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        </div>
 
                         {/* Weeks */}
                         {openMonths.has(month.key) && (
@@ -823,6 +876,18 @@ export default function App() {
               </table>
             </div>
           )}
+        </div>
+
+        {/* Clear Data */}
+        <div className="mt-8 pt-6 border-t border-gray-200 flex justify-center">
+          <button
+            onClick={() => setShowConfirm(true)}
+            disabled={entries.length === 0 && !isClockedIn}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clear All Data
+          </button>
         </div>
       </div>
     </div>
