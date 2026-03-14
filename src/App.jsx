@@ -9,6 +9,9 @@ import {
   Pencil,
   Check,
   X,
+  History,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 
 function formatTime(date) {
@@ -59,6 +62,13 @@ function formatDuration(ms) {
   return `${hours}h ${minutes}m`
 }
 
+function formatWeekLabel(weekStart) {
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekEnd.getDate() + 6)
+  const opts = { month: 'short', day: 'numeric' }
+  return `${weekStart.toLocaleDateString('en-US', opts)} – ${weekEnd.toLocaleDateString('en-US', opts)}`
+}
+
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 function getDateKey(date) {
@@ -94,6 +104,45 @@ function toDatetimeLocal(date) {
   )
 }
 
+function groupEntriesByMonthAndWeek(entries) {
+  const monthMap = {}
+  for (const entry of entries) {
+    const d = entry.clockIn
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const weekStart = getWeekStart(d)
+    const weekKey = getDateKey(weekStart)
+    const ms = entry.clockOut.getTime() - entry.clockIn.getTime()
+
+    if (!monthMap[monthKey]) {
+      monthMap[monthKey] = {
+        key: monthKey,
+        label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        totalMs: 0,
+        weeks: {},
+      }
+    }
+    monthMap[monthKey].totalMs += ms
+
+    if (!monthMap[monthKey].weeks[weekKey]) {
+      monthMap[monthKey].weeks[weekKey] = {
+        key: weekKey,
+        weekStart,
+        totalMs: 0,
+        entries: [],
+      }
+    }
+    monthMap[monthKey].weeks[weekKey].totalMs += ms
+    monthMap[monthKey].weeks[weekKey].entries.push(entry)
+  }
+
+  return Object.values(monthMap)
+    .sort((a, b) => b.key.localeCompare(a.key))
+    .map((month) => ({
+      ...month,
+      weeks: Object.values(month.weeks).sort((a, b) => b.key.localeCompare(a.key)),
+    }))
+}
+
 const STORAGE_KEY = 'timeapp_data'
 
 function loadFromStorage() {
@@ -124,6 +173,10 @@ export default function App() {
   const [isEditing, setIsEditing] = useState(false)
   const [editDrafts, setEditDrafts] = useState([])
   const [editErrors, setEditErrors] = useState([])
+  const [editEntryIndices, setEditEntryIndices] = useState([])
+  const [showHistory, setShowHistory] = useState(false)
+  const [openMonths, setOpenMonths] = useState(new Set())
+  const [openWeeks, setOpenWeeks] = useState(new Set())
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
@@ -169,7 +222,14 @@ export default function App() {
   }, {})
 
   const weekDays = getWeekDays(now)
+  const weekStartKey = getDateKey(weekDays[0])
+  const weekEndKey = getDateKey(weekDays[6])
   const weekTotalMs = weekDays.reduce((sum, d) => sum + (dailyTotals[getDateKey(d)] || 0), 0)
+
+  const currentWeekEntries = entries.filter((e) => {
+    const key = getDateKey(e.clockIn)
+    return key >= weekStartKey && key <= weekEndKey
+  })
 
   const handleExportCSV = useCallback(() => {
     const rows = [['Date', 'Clock In', 'Clock Out', 'Total Hours']]
@@ -214,14 +274,24 @@ export default function App() {
   }, [entries, totalMs])
 
   const handleEditConfirm = useCallback(() => {
-    setEditDrafts(entries.map((e) => ({
+    const indices = []
+    const cwEntries = []
+    entries.forEach((e, i) => {
+      const key = getDateKey(e.clockIn)
+      if (key >= weekStartKey && key <= weekEndKey) {
+        indices.push(i)
+        cwEntries.push(e)
+      }
+    })
+    setEditEntryIndices(indices)
+    setEditDrafts(cwEntries.map((e) => ({
       clockIn: toDatetimeLocal(e.clockIn),
       clockOut: toDatetimeLocal(e.clockOut),
     })))
-    setEditErrors(entries.map(() => null))
+    setEditErrors(cwEntries.map(() => null))
     setIsEditing(true)
     setShowEditConfirm(false)
-  }, [entries])
+  }, [entries, weekStartKey, weekEndKey])
 
   const handleDraftChange = useCallback((i, field, value) => {
     setEditDrafts((prev) => {
@@ -249,19 +319,27 @@ export default function App() {
       setEditErrors(errors)
       return
     }
-    setEntries(editDrafts.map((d) => ({
-      clockIn: new Date(d.clockIn),
-      clockOut: new Date(d.clockOut),
-    })))
+    setEntries((prev) => {
+      const next = [...prev]
+      editEntryIndices.forEach((origIdx, draftIdx) => {
+        next[origIdx] = {
+          clockIn: new Date(editDrafts[draftIdx].clockIn),
+          clockOut: new Date(editDrafts[draftIdx].clockOut),
+        }
+      })
+      return next
+    })
     setIsEditing(false)
     setEditDrafts([])
     setEditErrors([])
-  }, [editDrafts])
+    setEditEntryIndices([])
+  }, [editDrafts, editEntryIndices])
 
   const handleCancelEdit = useCallback(() => {
     setIsEditing(false)
     setEditDrafts([])
     setEditErrors([])
+    setEditEntryIndices([])
   }, [])
 
   const handleClearData = useCallback(() => {
@@ -272,6 +350,33 @@ export default function App() {
     localStorage.removeItem(STORAGE_KEY)
   }, [])
 
+  const handleOpenHistory = () => {
+    const today = new Date()
+    const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+    const currentWeekKey = getDateKey(getWeekStart(today))
+    setOpenMonths(new Set([currentMonthKey]))
+    setOpenWeeks(new Set([currentWeekKey]))
+    setShowHistory(true)
+  }
+
+  const toggleMonth = (key) => {
+    setOpenMonths((prev) => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
+  const toggleWeek = (key) => {
+    setOpenWeeks((prev) => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
+  const historyData = groupEntriesByMonthAndWeek(entries)
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -279,7 +384,7 @@ export default function App() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.5.2</span></h1>
+            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.6</span></h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
         </div>
@@ -339,6 +444,14 @@ export default function App() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-3 mb-6">
+          <button
+            onClick={handleOpenHistory}
+            disabled={entries.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          >
+            <History className="w-4 h-4" />
+            History
+          </button>
           <button
             onClick={handleExportCSV}
             disabled={entries.length === 0}
@@ -472,11 +585,117 @@ export default function App() {
           </div>
         )}
 
-        {/* History Table */}
+        {/* History Modal */}
+        {showHistory && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8 px-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-indigo-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">History</h2>
+                </div>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="max-h-[70vh] overflow-y-auto">
+                {historyData.length === 0 ? (
+                  <div className="px-6 py-12 text-center text-gray-400">
+                    <History className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                    <p>No history yet.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {historyData.map((month) => (
+                      <div key={month.key}>
+                        {/* Month row */}
+                        <button
+                          onClick={() => toggleMonth(month.key)}
+                          className="w-full flex items-center gap-3 px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer text-left"
+                        >
+                          {openMonths.has(month.key) ? (
+                            <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                          )}
+                          <span className="font-semibold text-gray-900 flex-1">{month.label}</span>
+                          <span className="font-mono text-sm text-indigo-600">{formatHours(month.totalMs)} hrs</span>
+                        </button>
+
+                        {/* Weeks */}
+                        {openMonths.has(month.key) && (
+                          <div className="border-t border-gray-100">
+                            {month.weeks.map((week) => (
+                              <div key={week.key} className="bg-gray-50/60">
+                                {/* Week row */}
+                                <button
+                                  onClick={() => toggleWeek(week.key)}
+                                  className="w-full flex items-center gap-3 pl-10 pr-6 py-3 hover:bg-gray-100/70 transition-colors cursor-pointer text-left"
+                                >
+                                  {openWeeks.has(week.key) ? (
+                                    <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                  ) : (
+                                    <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                  )}
+                                  <span className="text-sm text-gray-700 flex-1">{formatWeekLabel(week.weekStart)}</span>
+                                  <span className="font-mono text-sm text-gray-600">{formatHours(week.totalMs)} hrs</span>
+                                </button>
+
+                                {/* Week entries table */}
+                                {openWeeks.has(week.key) && (
+                                  <div className="border-t border-gray-100 overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="bg-white text-left text-gray-400 uppercase tracking-wider">
+                                          <th className="pl-14 pr-3 py-2">Date</th>
+                                          <th className="px-3 py-2">Clock In</th>
+                                          <th className="px-3 py-2">Clock Out</th>
+                                          <th className="px-3 py-2 text-right">Hours</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-100">
+                                        {week.entries.map((e, i) => {
+                                          const ms = e.clockOut.getTime() - e.clockIn.getTime()
+                                          return (
+                                            <tr key={i} className="bg-white">
+                                              <td className="pl-14 pr-3 py-2 text-gray-500">{formatShortDate(e.clockIn)}</td>
+                                              <td className="px-3 py-2 text-gray-500">{formatTableTime(e.clockIn)}</td>
+                                              <td className="px-3 py-2 text-gray-500">{formatTableTime(e.clockOut)}</td>
+                                              <td className="px-3 py-2 text-right font-mono text-gray-700">{formatHours(ms)}</td>
+                                            </tr>
+                                          )
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Time Log */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Time Log</h2>
-            {entries.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Time Log</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {formatShortDate(weekDays[0])} – {formatShortDate(weekDays[6])}
+              </p>
+            </div>
+            {currentWeekEntries.length > 0 && (
               isEditing ? (
                 <div className="flex items-center gap-2">
                   <button
@@ -507,10 +726,10 @@ export default function App() {
             )}
           </div>
 
-          {entries.length === 0 ? (
+          {currentWeekEntries.length === 0 ? (
             <div className="px-6 py-12 text-center text-gray-400">
               <Clock className="w-10 h-10 mx-auto mb-3 opacity-40" />
-              <p>No entries yet. Clock in to get started.</p>
+              <p>No entries this week. Clock in to get started.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -524,7 +743,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {entries.map((e, i) => {
+                  {currentWeekEntries.map((e, i) => {
                     if (isEditing) {
                       const draft = editDrafts[i] ?? { clockIn: '', clockOut: '' }
                       const cin = new Date(draft.clockIn)
@@ -594,10 +813,10 @@ export default function App() {
                       colSpan={3}
                       className="px-3 py-3 text-gray-900"
                     >
-                      Grand Total
+                      Week Total
                     </td>
                     <td className="px-3 py-3 text-right font-mono text-blue-600">
-                      {formatHours(totalMs)}
+                      {formatHours(weekTotalMs)}
                     </td>
                   </tr>
                 </tfoot>
