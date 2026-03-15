@@ -177,6 +177,7 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false)
   const [openMonths, setOpenMonths] = useState(new Set())
   const [openWeeks, setOpenWeeks] = useState(new Set())
+  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState(null)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
@@ -295,7 +296,7 @@ export default function App() {
   }, [entries, totalMs])
 
   const handleExportMonthCSV = useCallback((month) => {
-    const rows = [`Month: ${month.label}`, []]
+    const rows = [[`Month: ${month.label}`], []]
     month.weeks.forEach((week) => {
       rows.push([`Week: ${formatWeekLabel(week.weekStart)}`])
       rows.push(['Date', 'Clock In', 'Clock Out', 'Total Hours'])
@@ -384,6 +385,18 @@ export default function App() {
     setEditEntryIndices([])
   }, [])
 
+  const handleDeleteEntry = useCallback(() => {
+    const draftIdx = deleteConfirmIndex
+    const origIdx = editEntryIndices[draftIdx]
+    setEntries((prev) => prev.filter((_, i) => i !== origIdx))
+    setEditDrafts((prev) => prev.filter((_, i) => i !== draftIdx))
+    setEditErrors((prev) => prev.filter((_, i) => i !== draftIdx))
+    setEditEntryIndices((prev) =>
+      prev.filter((_, i) => i !== draftIdx).map((idx) => (idx > origIdx ? idx - 1 : idx))
+    )
+    setDeleteConfirmIndex(null)
+  }, [deleteConfirmIndex, editEntryIndices])
+
   const handleClearData = useCallback(() => {
     setEntries([])
     setCurrentClockIn(null)
@@ -393,11 +406,8 @@ export default function App() {
   }, [])
 
   const handleOpenHistory = () => {
-    const today = new Date()
-    const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
-    const currentWeekKey = getDateKey(getWeekStart(today))
-    setOpenMonths(new Set([currentMonthKey]))
-    setOpenWeeks(new Set([currentWeekKey]))
+    setOpenMonths(new Set())
+    setOpenWeeks(new Set())
     setShowHistory(true)
   }
 
@@ -426,7 +436,7 @@ export default function App() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.6.1</span></h1>
+            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.6.2</span></h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
         </div>
@@ -619,6 +629,32 @@ export default function App() {
           </div>
         )}
 
+        {/* Delete Entry Confirmation */}
+        {deleteConfirmIndex !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm mx-4 w-full">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete this entry?</h2>
+              <p className="text-sm text-gray-500 mb-6">
+                This will permanently remove the entry. This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setDeleteConfirmIndex(null)}
+                  className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteEntry}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* History Modal */}
         {showHistory && (
           <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8 px-4">
@@ -793,6 +829,7 @@ export default function App() {
                     <th className="px-3 py-3">Clock In</th>
                     <th className="px-3 py-3">Clock Out</th>
                     <th className="px-3 py-3 text-right">Total Hours</th>
+                    {isEditing && <th className="px-2 py-3" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -830,10 +867,19 @@ export default function App() {
                             <td className="px-3 py-2 text-right font-mono text-gray-900 text-sm">
                               {draftMs > 0 ? formatHours(draftMs) : '—'}
                             </td>
+                            <td className="px-2 py-2">
+                              <button
+                                onClick={() => setDeleteConfirmIndex(i)}
+                                className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                title="Delete entry"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
                           </tr>
                           {error && (
                             <tr key={`err-${i}`} className="bg-red-50">
-                              <td colSpan={4} className="px-3 pb-2 text-xs text-red-600">
+                              <td colSpan={5} className="px-3 pb-2 text-xs text-red-600">
                                 {error}
                               </td>
                             </tr>
@@ -862,15 +908,13 @@ export default function App() {
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-50 font-semibold">
-                    <td
-                      colSpan={3}
-                      className="px-3 py-3 text-gray-900"
-                    >
+                    <td colSpan={3} className="px-3 py-3 text-gray-900">
                       Week Total
                     </td>
                     <td className="px-3 py-3 text-right font-mono text-blue-600">
                       {formatHours(weekTotalMs)}
                     </td>
+                    {isEditing && <td />}
                   </tr>
                 </tfoot>
               </table>
