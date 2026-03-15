@@ -178,6 +178,7 @@ export default function App() {
   const [openMonths, setOpenMonths] = useState(new Set())
   const [openWeeks, setOpenWeeks] = useState(new Set())
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState(null)
+  const [ripple, setRipple] = useState(null) // { key: number, type: 'in' | 'out' }
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
@@ -193,7 +194,18 @@ export default function App() {
 
   const handleToggle = useCallback(() => {
     const timestamp = new Date()
-    if (!isClockedIn) {
+    const clockingIn = !isClockedIn
+
+    // Haptic feedback — one firm buzz for in, two quick taps for out
+    if (navigator.vibrate) {
+      navigator.vibrate(clockingIn ? 150 : [60, 60, 60])
+    }
+
+    // Ripple burst animation
+    setRipple({ key: Date.now(), type: clockingIn ? 'in' : 'out' })
+    setTimeout(() => setRipple(null), 1000)
+
+    if (clockingIn) {
       setCurrentClockIn(timestamp)
       setIsClockedIn(true)
     } else {
@@ -431,12 +443,18 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <style>{`
+        @keyframes rippleBurst {
+          0%   { transform: scale(1);   opacity: 0.7; }
+          100% { transform: scale(2.4); opacity: 0;   }
+        }
+      `}</style>
       <div className="max-w-3xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.6.2</span></h1>
+            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.6.3</span></h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
         </div>
@@ -471,26 +489,41 @@ export default function App() {
             </div>
 
             {/* Toggle button */}
-            <button
-              onClick={handleToggle}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-white font-medium text-lg transition-colors cursor-pointer ${
-                isClockedIn
-                  ? 'bg-red-500 hover:bg-red-600'
-                  : 'bg-green-500 hover:bg-green-600'
-              }`}
-            >
-              {isClockedIn ? (
-                <>
-                  <LogOut className="w-5 h-5" />
-                  Clock Out
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-5 h-5" />
-                  Clock In
-                </>
-              )}
-            </button>
+            <div className="relative">
+              {ripple && [0, 200, 400].map((delay) => (
+                <span
+                  key={`${ripple.key}-${delay}`}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: '0.75rem',
+                    border: `2.5px solid ${ripple.type === 'in' ? '#22c55e' : '#ef4444'}`,
+                    animation: `rippleBurst 0.85s ease-out ${delay}ms both`,
+                    pointerEvents: 'none',
+                  }}
+                />
+              ))}
+              <button
+                onClick={handleToggle}
+                className={`relative flex items-center gap-2 px-6 py-3 rounded-xl text-white font-medium text-lg transition-colors cursor-pointer ${
+                  isClockedIn
+                    ? 'bg-red-500 hover:bg-red-600'
+                    : 'bg-green-500 hover:bg-green-600'
+                }`}
+              >
+                {isClockedIn ? (
+                  <>
+                    <LogOut className="w-5 h-5" />
+                    Clock Out
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="w-5 h-5" />
+                    Clock In
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
