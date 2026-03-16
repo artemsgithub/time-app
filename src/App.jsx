@@ -72,6 +72,7 @@ function formatWeekLabel(weekStart) {
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const CHANGELOG = [
+  { version: 'v1.6.4.1', note: 'Fix day-level hours display in history (operator precedence bug)' },
   { version: 'v1.6.4', note: 'History week day accordions; version changelog modal' },
   { version: 'v1.6.3', note: 'Haptic feedback (Clock In: firm buzz; Clock Out: double tap) and ripple burst animation' },
   { version: 'v1.6.2', note: 'Fix month CSV export; history opens collapsed; delete individual entries in edit mode' },
@@ -486,7 +487,7 @@ export default function App() {
                 onClick={() => setShowChangelog(true)}
                 className="text-lg font-normal text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
                 title="View changelog"
-              >v1.6.4</button>
+              >v1.6.4.1</button>
             </h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
@@ -839,7 +840,7 @@ export default function App() {
                                     <div className="border-t border-gray-100">
                                       {dayKeys.map((dk) => {
                                         const dayEntries = dayMap[dk]
-                                        const dayMs = dayEntries.reduce((s, e) => s + e.clockOut - e.clockIn, 0)
+                                        const dayMs = dayEntries.reduce((s, e) => s + (e.clockOut - e.clockIn), 0)
                                         const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(dk + 'T12:00:00').getDay()]
                                         const isOpen = openDays.has(dk)
                                         return (
