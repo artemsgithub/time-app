@@ -71,6 +71,23 @@ function formatWeekLabel(weekStart) {
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
+const CHANGELOG = [
+  { version: 'v1.6.4', note: 'History week day accordions; version changelog modal' },
+  { version: 'v1.6.3', note: 'Haptic feedback (Clock In: firm buzz; Clock Out: double tap) and ripple burst animation' },
+  { version: 'v1.6.2', note: 'Fix month CSV export; history opens collapsed; delete individual entries in edit mode' },
+  { version: 'v1.6.1', note: 'Scoped CSV exports (week / all-time / per-month); Clear Data moved to bottom' },
+  { version: 'v1.6',   note: 'History modal with monthly + weekly accordions; Time Log scoped to current week' },
+  { version: 'v1.5.2', note: 'Reduce Time Log cell padding to fix mobile horizontal scroll' },
+  { version: 'v1.5.1', note: 'Compact date/time format in Time Log for mobile readability' },
+  { version: 'v1.5',   note: 'Weekly summary table; inline entry editing' },
+  { version: 'v1.4.2', note: 'Inline editing for time log entries' },
+  { version: 'v1.4.1', note: 'iOS home screen support (apple-touch-icon)' },
+  { version: 'v1.4',   note: 'Clock SVG favicon' },
+  { version: 'v1.3',   note: 'Persist clock data in localStorage across reloads' },
+  { version: 'v1.2',   note: 'Version display in header; localStorage lazy init fix' },
+  { version: 'v1.0',   note: 'Initial release — clock in/out, time log, total hours' },
+]
+
 function getDateKey(date) {
   return (
     `${date.getFullYear()}-` +
@@ -179,6 +196,8 @@ export default function App() {
   const [openWeeks, setOpenWeeks] = useState(new Set())
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState(null)
   const [ripple, setRipple] = useState(null) // { key: number, type: 'in' | 'out' }
+  const [showChangelog, setShowChangelog] = useState(false)
+  const [openDays, setOpenDays] = useState(new Set())
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
@@ -439,6 +458,14 @@ export default function App() {
     })
   }
 
+  const toggleDay = (key) => {
+    setOpenDays((prev) => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
   const historyData = groupEntriesByMonthAndWeek(entries)
 
   return (
@@ -454,7 +481,13 @@ export default function App() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">TimeApp <span className="text-lg font-normal text-gray-400">v1.6.3</span></h1>
+            <h1 className="text-3xl font-bold text-gray-900">TimeApp{' '}
+              <button
+                onClick={() => setShowChangelog(true)}
+                className="text-lg font-normal text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
+                title="View changelog"
+              >v1.6.4</button>
+            </h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
         </div>
@@ -662,6 +695,31 @@ export default function App() {
           </div>
         )}
 
+        {/* Changelog Modal */}
+        {showChangelog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h2 className="text-lg font-semibold text-gray-900">Changelog</h2>
+                <button
+                  onClick={() => setShowChangelog(false)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <ul className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
+                {CHANGELOG.map(({ version, note }) => (
+                  <li key={version} className="flex gap-4 px-6 py-3">
+                    <span className="font-mono text-sm text-blue-600 shrink-0 w-14">{version}</span>
+                    <span className="text-sm text-gray-600">{note}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {/* Delete Entry Confirmation */}
         {deleteConfirmIndex !== null && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -767,34 +825,72 @@ export default function App() {
                                   <span className="font-mono text-sm text-gray-600">{formatHours(week.totalMs)} hrs</span>
                                 </button>
 
-                                {/* Week entries table */}
-                                {openWeeks.has(week.key) && (
-                                  <div className="border-t border-gray-100 overflow-x-auto">
-                                    <table className="w-full text-xs">
-                                      <thead>
-                                        <tr className="bg-white text-left text-gray-400 uppercase tracking-wider">
-                                          <th className="pl-14 pr-3 py-2">Date</th>
-                                          <th className="px-3 py-2">Clock In</th>
-                                          <th className="px-3 py-2">Clock Out</th>
-                                          <th className="px-3 py-2 text-right">Hours</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-gray-100">
-                                        {week.entries.map((e, i) => {
-                                          const ms = e.clockOut.getTime() - e.clockIn.getTime()
-                                          return (
-                                            <tr key={i} className="bg-white">
-                                              <td className="pl-14 pr-3 py-2 text-gray-500">{formatShortDate(e.clockIn)}</td>
-                                              <td className="px-3 py-2 text-gray-500">{formatTableTime(e.clockIn)}</td>
-                                              <td className="px-3 py-2 text-gray-500">{formatTableTime(e.clockOut)}</td>
-                                              <td className="px-3 py-2 text-right font-mono text-gray-700">{formatHours(ms)}</td>
-                                            </tr>
-                                          )
-                                        })}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
+                                {/* Week — day accordions */}
+                                {openWeeks.has(week.key) && (() => {
+                                  // Group entries by date key
+                                  const dayMap = {}
+                                  week.entries.forEach((e) => {
+                                    const dk = getDateKey(e.clockIn)
+                                    if (!dayMap[dk]) dayMap[dk] = []
+                                    dayMap[dk].push(e)
+                                  })
+                                  const dayKeys = Object.keys(dayMap).sort()
+                                  return (
+                                    <div className="border-t border-gray-100">
+                                      {dayKeys.map((dk) => {
+                                        const dayEntries = dayMap[dk]
+                                        const dayMs = dayEntries.reduce((s, e) => s + e.clockOut - e.clockIn, 0)
+                                        const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(dk + 'T12:00:00').getDay()]
+                                        const isOpen = openDays.has(dk)
+                                        return (
+                                          <div key={dk} className="bg-white">
+                                            {/* Day row */}
+                                            <button
+                                              onClick={() => toggleDay(dk)}
+                                              className="w-full flex items-center gap-3 pl-14 pr-6 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer text-left"
+                                            >
+                                              {isOpen ? (
+                                                <ChevronDown className="w-3 h-3 text-gray-300 shrink-0" />
+                                              ) : (
+                                                <ChevronRight className="w-3 h-3 text-gray-300 shrink-0" />
+                                              )}
+                                              <span className="text-xs font-medium text-gray-700 w-8 shrink-0">{dayName}</span>
+                                              <span className="text-xs text-gray-400 flex-1">{formatShortDate(new Date(dk + 'T12:00:00'))}</span>
+                                              <span className="font-mono text-xs text-gray-500">{formatHours(dayMs)} hrs</span>
+                                            </button>
+
+                                            {/* Day entries */}
+                                            {isOpen && (
+                                              <div className="border-t border-gray-50 overflow-x-auto">
+                                                <table className="w-full text-xs">
+                                                  <thead>
+                                                    <tr className="bg-gray-50 text-left text-gray-400 uppercase tracking-wider">
+                                                      <th className="pl-20 pr-3 py-1.5">Clock In</th>
+                                                      <th className="px-3 py-1.5">Clock Out</th>
+                                                      <th className="px-3 py-1.5 text-right">Hours</th>
+                                                    </tr>
+                                                  </thead>
+                                                  <tbody className="divide-y divide-gray-50">
+                                                    {dayEntries.map((e, i) => {
+                                                      const ms = e.clockOut - e.clockIn
+                                                      return (
+                                                        <tr key={i} className="bg-white">
+                                                          <td className="pl-20 pr-3 py-1.5 text-gray-500">{formatTableTime(e.clockIn)}</td>
+                                                          <td className="px-3 py-1.5 text-gray-500">{formatTableTime(e.clockOut)}</td>
+                                                          <td className="px-3 py-1.5 text-right font-mono text-gray-700">{formatHours(ms)}</td>
+                                                        </tr>
+                                                      )
+                                                    })}
+                                                  </tbody>
+                                                </table>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  )
+                                })()}
                               </div>
                             ))}
                           </div>
