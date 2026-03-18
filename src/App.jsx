@@ -72,6 +72,7 @@ function formatWeekLabel(weekStart) {
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const CHANGELOG = [
+  { version: 'v1.6.5.3', note: 'Fix Edit Entry modal: stack Clock In/Out inputs vertically to prevent iOS border merge' },
   { version: 'v1.6.5.2', note: 'Edit button in Time Log header unlocks per-row pencil + delete icons; clean by default' },
   { version: 'v1.6.5.1', note: 'Nest edit icon in Total Hours; always-visible pencil on touch; fix note Save bug; fix Safari iOS zoom on inputs' },
   { version: 'v1.6.5', note: 'Per-entry edit modal; day notes on weekly summary + history; stronger haptics; removed ripple' },
@@ -452,7 +453,7 @@ export default function App() {
                 onClick={() => setShowChangelog(true)}
                 className="text-lg font-normal text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
                 title="View changelog"
-              >v1.6.5.2</button>
+              >v1.6.5.3</button>
             </h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
@@ -643,8 +644,8 @@ export default function App() {
                 </button>
               </div>
               <div className="px-6 py-5 space-y-4">
-                <div className="flex gap-4">
-                  <div className="flex-1">
+                <div className="space-y-3">
+                  <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">Clock In</label>
                     <input
                       type="time"
@@ -654,7 +655,7 @@ export default function App() {
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
-                  <div className="flex-1">
+                  <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">Clock Out</label>
                     <input
                       type="time"
