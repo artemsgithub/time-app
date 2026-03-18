@@ -72,6 +72,7 @@ function formatWeekLabel(weekStart) {
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const CHANGELOG = [
+  { version: 'v1.6.5.6', note: 'Replace type=time with HH/MM select dropdowns — native iOS wheel picker, no overflow' },
   { version: 'v1.6.5.5', note: 'Replace type=time inputs with type=text (24h HH:MM) — iOS native time picker ignores CSS width constraints' },
   { version: 'v1.6.5.4', note: 'Fix Edit Entry modal inputs overflowing card right edge on iOS (overflow-hidden + minWidth:0)' },
   { version: 'v1.6.5.3', note: 'Fix Edit Entry modal: stack Clock In/Out inputs vertically to prevent iOS border merge' },
@@ -186,6 +187,34 @@ function loadFromStorage() {
   } catch {
     return null
   }
+}
+
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
+
+function HourMinuteSelect({ value, onChange }) {
+  const [h, m] = (value || '00:00').split(':')
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        value={h}
+        onChange={(e) => onChange(`${e.target.value}:${m}`)}
+        style={{ fontSize: '16px' }}
+        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+      >
+        {HOURS.map((v) => <option key={v} value={v}>{v}</option>)}
+      </select>
+      <span className="text-gray-400 font-semibold text-lg select-none">:</span>
+      <select
+        value={m}
+        onChange={(e) => onChange(`${h}:${e.target.value}`)}
+        style={{ fontSize: '16px' }}
+        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+      >
+        {MINUTES.map((v) => <option key={v} value={v}>{v}</option>)}
+      </select>
+    </div>
+  )
 }
 
 export default function App() {
@@ -366,11 +395,7 @@ export default function App() {
     const { origIndex, entry } = editingEntry
     const [inH, inM] = editEntryDraft.clockIn.split(':').map(Number)
     const [outH, outM] = editEntryDraft.clockOut.split(':').map(Number)
-    if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM) ||
-        inH > 23 || inM > 59 || outH > 23 || outM > 59) {
-      setEditEntryError('Enter times as HH:MM in 24h format (e.g. 09:30 or 14:00)')
-      return
-    }
+    if (isNaN(inH) || isNaN(outH)) { setEditEntryError('Invalid time'); return }
     const newIn = new Date(entry.clockIn)
     newIn.setHours(inH, inM, 0, 0)
     const newOut = new Date(entry.clockOut)
@@ -459,7 +484,7 @@ export default function App() {
                 onClick={() => setShowChangelog(true)}
                 className="text-lg font-normal text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
                 title="View changelog"
-              >v1.6.5.5</button>
+              >v1.6.5.6</button>
             </h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
@@ -652,31 +677,17 @@ export default function App() {
               <div className="px-6 py-5 space-y-4">
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                      Clock In <span className="font-normal text-gray-400">(24h HH:MM)</span>
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="e.g. 09:30"
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Clock In</label>
+                    <HourMinuteSelect
                       value={editEntryDraft.clockIn}
-                      onChange={(e) => { setEditEntryDraft((p) => ({ ...p, clockIn: e.target.value })); setEditEntryError(null) }}
-                      style={{ fontSize: '16px' }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      onChange={(v) => { setEditEntryDraft((p) => ({ ...p, clockIn: v })); setEditEntryError(null) }}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                      Clock Out <span className="font-normal text-gray-400">(24h HH:MM)</span>
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="e.g. 17:00"
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Clock Out</label>
+                    <HourMinuteSelect
                       value={editEntryDraft.clockOut}
-                      onChange={(e) => { setEditEntryDraft((p) => ({ ...p, clockOut: e.target.value })); setEditEntryError(null) }}
-                      style={{ fontSize: '16px' }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      onChange={(v) => { setEditEntryDraft((p) => ({ ...p, clockOut: v })); setEditEntryError(null) }}
                     />
                   </div>
                 </div>
