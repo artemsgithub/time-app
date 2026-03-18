@@ -72,6 +72,7 @@ function formatWeekLabel(weekStart) {
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const CHANGELOG = [
+  { version: 'v1.6.5.2', note: 'Edit button in Time Log header unlocks per-row pencil + delete icons; clean by default' },
   { version: 'v1.6.5.1', note: 'Nest edit icon in Total Hours; always-visible pencil on touch; fix note Save bug; fix Safari iOS zoom on inputs' },
   { version: 'v1.6.5', note: 'Per-entry edit modal; day notes on weekly summary + history; stronger haptics; removed ripple' },
   { version: 'v1.6.4.1', note: 'Fix day-level hours display in history (operator precedence bug)' },
@@ -202,6 +203,7 @@ export default function App() {
   const [dayNotes, setDayNotes] = useState(() => loadFromStorage()?.dayNotes ?? {})
   const [noteModalDate, setNoteModalDate] = useState(null) // YYYY-MM-DD | null
   const [noteDraft, setNoteDraft] = useState('')
+  const [isEditMode, setIsEditMode] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
@@ -450,7 +452,7 @@ export default function App() {
                 onClick={() => setShowChangelog(true)}
                 className="text-lg font-normal text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
                 title="View changelog"
-              >v1.6.5.1</button>
+              >v1.6.5.2</button>
             </h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
@@ -989,6 +991,24 @@ export default function App() {
                 {formatShortDate(weekDays[0])} – {formatShortDate(weekDays[6])}
               </p>
             </div>
+            {currentWeekEntries.length > 0 && (
+              isEditMode ? (
+                <button
+                  onClick={() => setIsEditMode(false)}
+                  className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                >
+                  Done
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsEditMode(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+              )
+            )}
           </div>
 
           {currentWeekEntries.length === 0 ? (
@@ -1018,15 +1038,26 @@ export default function App() {
                         <td className="px-3 py-3 text-gray-700">{formatTableTime(e.clockIn)}</td>
                         <td className="px-3 py-3 text-gray-700">{formatTableTime(e.clockOut)}</td>
                         <td className="px-3 py-3">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1">
                             <span className="font-mono text-gray-900">{formatHours(sessionMs)}</span>
-                            <button
-                              onClick={() => handleOpenEditEntry(origIndex, e)}
-                              className="p-1 text-gray-300 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
-                              title="Edit entry"
-                            >
-                              <Pencil className="w-3 h-3" />
-                            </button>
+                            {isEditMode && (
+                              <>
+                                <button
+                                  onClick={() => handleOpenEditEntry(origIndex, e)}
+                                  className="p-1 ml-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                                  title="Edit entry"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => setDeleteConfirmIndex(origIndex)}
+                                  className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                  title="Delete entry"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
