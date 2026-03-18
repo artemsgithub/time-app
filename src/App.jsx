@@ -72,6 +72,7 @@ function formatWeekLabel(weekStart) {
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const CHANGELOG = [
+  { version: 'v1.6.5.4', note: 'Fix Edit Entry modal inputs overflowing card right edge on iOS (overflow-hidden + minWidth:0)' },
   { version: 'v1.6.5.3', note: 'Fix Edit Entry modal: stack Clock In/Out inputs vertically to prevent iOS border merge' },
   { version: 'v1.6.5.2', note: 'Edit button in Time Log header unlocks per-row pencil + delete icons; clean by default' },
   { version: 'v1.6.5.1', note: 'Nest edit icon in Total Hours; always-visible pencil on touch; fix note Save bug; fix Safari iOS zoom on inputs' },
@@ -453,7 +454,7 @@ export default function App() {
                 onClick={() => setShowChangelog(true)}
                 className="text-lg font-normal text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
                 title="View changelog"
-              >v1.6.5.3</button>
+              >v1.6.5.4</button>
             </h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
@@ -627,7 +628,7 @@ export default function App() {
         {/* Edit Entry Modal */}
         {editingEntry && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">Edit Entry</h2>
@@ -645,24 +646,24 @@ export default function App() {
               </div>
               <div className="px-6 py-5 space-y-4">
                 <div className="space-y-3">
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">Clock In</label>
                     <input
                       type="time"
                       value={editEntryDraft.clockIn}
                       onChange={(e) => { setEditEntryDraft((p) => ({ ...p, clockIn: e.target.value })); setEditEntryError(null) }}
-                      style={{ fontSize: '16px' }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      style={{ fontSize: '16px', width: '100%', minWidth: 0 }}
+                      className="block border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">Clock Out</label>
                     <input
                       type="time"
                       value={editEntryDraft.clockOut}
                       onChange={(e) => { setEditEntryDraft((p) => ({ ...p, clockOut: e.target.value })); setEditEntryError(null) }}
-                      style={{ fontSize: '16px' }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      style={{ fontSize: '16px', width: '100%', minWidth: 0 }}
+                      className="block border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
                 </div>
