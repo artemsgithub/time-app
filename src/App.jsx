@@ -72,6 +72,7 @@ function formatWeekLabel(weekStart) {
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const CHANGELOG = [
+  { version: 'v1.6.5.1', note: 'Nest edit icon in Total Hours; always-visible pencil on touch; fix note Save bug; fix Safari iOS zoom on inputs' },
   { version: 'v1.6.5', note: 'Per-entry edit modal; day notes on weekly summary + history; stronger haptics; removed ripple' },
   { version: 'v1.6.4.1', note: 'Fix day-level hours display in history (operator precedence bug)' },
   { version: 'v1.6.4', note: 'History week day accordions; version changelog modal' },
@@ -449,7 +450,7 @@ export default function App() {
                 onClick={() => setShowChangelog(true)}
                 className="text-lg font-normal text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
                 title="View changelog"
-              >v1.6.5</button>
+              >v1.6.5.1</button>
             </h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
@@ -647,6 +648,7 @@ export default function App() {
                       type="time"
                       value={editEntryDraft.clockIn}
                       onChange={(e) => { setEditEntryDraft((p) => ({ ...p, clockIn: e.target.value })); setEditEntryError(null) }}
+                      style={{ fontSize: '16px' }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
@@ -656,6 +658,7 @@ export default function App() {
                       type="time"
                       value={editEntryDraft.clockOut}
                       onChange={(e) => { setEditEntryDraft((p) => ({ ...p, clockOut: e.target.value })); setEditEntryError(null) }}
+                      style={{ fontSize: '16px' }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
@@ -748,11 +751,11 @@ export default function App() {
               </div>
               <div className="px-6 py-4">
                 <textarea
-                  autoFocus
                   value={noteDraft}
                   onChange={(e) => setNoteDraft(e.target.value)}
                   placeholder="Add a note for this day…"
                   rows={4}
+                  style={{ fontSize: '16px' }}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
                 />
               </div>
@@ -773,7 +776,7 @@ export default function App() {
                     Cancel
                   </button>
                   <button
-                    onClick={handleSaveNote}
+                    onClick={() => handleSaveNote()}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer text-sm"
                   >
                     Save
@@ -1002,7 +1005,6 @@ export default function App() {
                     <th className="px-3 py-3">Clock In</th>
                     <th className="px-3 py-3">Clock Out</th>
                     <th className="px-3 py-3 text-right">Total Hours</th>
-                    <th className="px-2 py-3" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1011,19 +1013,21 @@ export default function App() {
                     const origIndex = entries.indexOf(e)
                     const sessionMs = e.clockOut.getTime() - e.clockIn.getTime()
                     return (
-                      <tr key={i} className="group hover:bg-gray-50">
+                      <tr key={i} className="hover:bg-gray-50">
                         <td className="px-3 py-3 text-gray-900">{formatShortDate(e.clockIn)}</td>
                         <td className="px-3 py-3 text-gray-700">{formatTableTime(e.clockIn)}</td>
                         <td className="px-3 py-3 text-gray-700">{formatTableTime(e.clockOut)}</td>
-                        <td className="px-3 py-3 text-right font-mono text-gray-900">{formatHours(sessionMs)}</td>
-                        <td className="px-2 py-3">
-                          <button
-                            onClick={() => handleOpenEditEntry(origIndex, e)}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all cursor-pointer"
-                            title="Edit entry"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="font-mono text-gray-900">{formatHours(sessionMs)}</span>
+                            <button
+                              onClick={() => handleOpenEditEntry(origIndex, e)}
+                              className="p-1 text-gray-300 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                              title="Edit entry"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -1033,7 +1037,6 @@ export default function App() {
                   <tr className="bg-gray-50 font-semibold">
                     <td colSpan={3} className="px-3 py-3 text-gray-900">Week Total</td>
                     <td className="px-3 py-3 text-right font-mono text-blue-600">{formatHours(weekTotalMs)}</td>
-                    <td />
                   </tr>
                 </tfoot>
               </table>
