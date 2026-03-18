@@ -72,6 +72,7 @@ function formatWeekLabel(weekStart) {
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const CHANGELOG = [
+  { version: 'v1.6.5.7', note: 'Nest note icon inside Total Hours cell in Weekly Summary; remove extra column' },
   { version: 'v1.6.5.6', note: 'Replace type=time with HH/MM select dropdowns — native iOS wheel picker, no overflow' },
   { version: 'v1.6.5.5', note: 'Replace type=time inputs with type=text (24h HH:MM) — iOS native time picker ignores CSS width constraints' },
   { version: 'v1.6.5.4', note: 'Fix Edit Entry modal inputs overflowing card right edge on iOS (overflow-hidden + minWidth:0)' },
@@ -484,7 +485,7 @@ export default function App() {
                 onClick={() => setShowChangelog(true)}
                 className="text-lg font-normal text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
                 title="View changelog"
-              >v1.6.5.6</button>
+              >v1.6.5.7</button>
             </h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
@@ -578,7 +579,6 @@ export default function App() {
                   <th className="px-6 py-3">Day</th>
                   <th className="px-6 py-3">Date</th>
                   <th className="px-6 py-3 text-right">Total Hours</th>
-                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -597,19 +597,21 @@ export default function App() {
                       <td className={`px-6 py-3 ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>
                         {formatShortDate(d)}
                       </td>
-                      <td className={`px-6 py-3 text-right font-mono ${ms > 0 ? (isToday ? 'text-blue-700 font-semibold' : 'text-gray-900') : 'text-gray-300'}`}>
-                        {ms > 0 ? formatHours(ms) : (isFuture ? '—' : '0.00')}
-                      </td>
-                      <td className="px-4 py-3">
-                        {!isFuture && (
-                          <button
-                            onClick={() => handleOpenNoteModal(key)}
-                            className="p-1 rounded transition-colors cursor-pointer"
-                            title={hasNote ? 'Edit note' : 'Add note'}
-                          >
-                            <StickyNote className={`w-4 h-4 ${hasNote ? 'text-yellow-400' : 'text-gray-300 hover:text-gray-400'}`} />
-                          </button>
-                        )}
+                      <td className="px-6 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <span className={`font-mono ${ms > 0 ? (isToday ? 'text-blue-700 font-semibold' : 'text-gray-900') : 'text-gray-300'}`}>
+                            {ms > 0 ? formatHours(ms) : (isFuture ? '—' : '0.00')}
+                          </span>
+                          {!isFuture && (
+                            <button
+                              onClick={() => handleOpenNoteModal(key)}
+                              className="p-1 rounded transition-colors cursor-pointer"
+                              title={hasNote ? 'Edit note' : 'Add note'}
+                            >
+                              <StickyNote className={`w-4 h-4 ${hasNote ? 'text-yellow-400' : 'text-gray-300 hover:text-gray-400'}`} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -619,7 +621,6 @@ export default function App() {
                 <tr className="bg-gray-50 font-semibold">
                   <td colSpan={2} className="px-6 py-3 text-gray-900">Week Total</td>
                   <td className="px-6 py-3 text-right font-mono text-blue-600">{formatHours(weekTotalMs)}</td>
-                  <td />
                 </tr>
               </tfoot>
             </table>
