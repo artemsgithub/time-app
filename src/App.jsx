@@ -72,7 +72,7 @@ function formatWeekLabel(weekStart) {
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const CHANGELOG = [
-  { version: 'v1.6.5.7', note: 'Nest note icon inside Total Hours cell in Weekly Summary; remove extra column' },
+  { version: 'v1.6.5.7', note: 'Nest note icon inside Total Hours cell in Weekly Summary; remove extra column. Note icon color changed to muted orange.' },
   { version: 'v1.6.5.6', note: 'Replace type=time with HH/MM select dropdowns — native iOS wheel picker, no overflow' },
   { version: 'v1.6.5.5', note: 'Replace type=time inputs with type=text (24h HH:MM) — iOS native time picker ignores CSS width constraints' },
   { version: 'v1.6.5.4', note: 'Fix Edit Entry modal inputs overflowing card right edge on iOS (overflow-hidden + minWidth:0)' },
@@ -608,7 +608,7 @@ export default function App() {
                               className="p-1 rounded transition-colors cursor-pointer"
                               title={hasNote ? 'Edit note' : 'Add note'}
                             >
-                              <StickyNote className={`w-4 h-4 ${hasNote ? 'text-yellow-400' : 'text-gray-300 hover:text-gray-400'}`} />
+                              <StickyNote className={`w-4 h-4 ${hasNote ? 'text-orange-400' : 'text-gray-300 hover:text-gray-400'}`} />
                             </button>
                           )}
                         </div>
@@ -960,7 +960,7 @@ export default function App() {
                                                 className="p-2 mr-2 rounded cursor-pointer transition-colors"
                                                 title={dayNotes[dk] ? 'Edit note' : 'Add note'}
                                               >
-                                                <StickyNote className={`w-3.5 h-3.5 ${dayNotes[dk] ? 'text-yellow-400' : 'text-gray-300 hover:text-gray-400'}`} />
+                                                <StickyNote className={`w-3.5 h-3.5 ${dayNotes[dk] ? 'text-orange-400' : 'text-gray-300 hover:text-gray-400'}`} />
                                               </button>
                                             </div>
 
