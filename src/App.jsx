@@ -72,6 +72,7 @@ function formatWeekLabel(weekStart) {
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const CHANGELOG = [
+  { version: 'v1.6.6.1', note: 'Fix NaN in Day Total row of CSV exports (operator precedence bug in dayMs reduce).' },
   { version: 'v1.6.6', note: 'Export All: organized by month → week → day; all CSV exports include day notes and H:MM clock times (no seconds); fixed CSV quoting for fields with commas.' },
   { version: 'v1.6.5.7', note: 'Nest note icon inside Total Hours cell in Weekly Summary; remove extra column. Favicon color changed to deep orange (#ea580c).' },
   { version: 'v1.6.5.6', note: 'Replace type=time with HH/MM select dropdowns — native iOS wheel picker, no overflow' },
@@ -335,7 +336,7 @@ export default function App() {
       .sort(([a], [b]) => a.localeCompare(b))
       .forEach(([key, dayEntries]) => {
         const note = dayNotes[key] || ''
-        const dayMs = dayEntries.reduce((sum, e) => sum + e.clockOut - e.clockIn, 0)
+        const dayMs = dayEntries.reduce((sum, e) => sum + (e.clockOut - e.clockIn), 0)
         dayEntries.forEach((e, i) => {
           rows.push([
             i === 0 ? formatCsvDate(e.clockIn) : '',
@@ -380,7 +381,7 @@ export default function App() {
           .sort(([a], [b]) => a.localeCompare(b))
           .forEach(([key, dayEntries]) => {
             const note = dayNotes[key] || ''
-            const dayMs = dayEntries.reduce((sum, e) => sum + e.clockOut - e.clockIn, 0)
+            const dayMs = dayEntries.reduce((sum, e) => sum + (e.clockOut - e.clockIn), 0)
             dayEntries.forEach((e, i) => {
               rows.push([
                 i === 0 ? formatCsvDate(e.clockIn) : '',
@@ -548,7 +549,7 @@ export default function App() {
                 onClick={() => setShowChangelog(true)}
                 className="text-lg font-normal text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
                 title="View changelog"
-              >v1.6.6</button>
+              >v1.6.6.1</button>
             </h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
