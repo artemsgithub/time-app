@@ -72,6 +72,7 @@ function formatWeekLabel(weekStart) {
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const CHANGELOG = [
+  { version: 'v1.6.6', note: 'Export All: organized by month → week → day; all CSV exports include day notes and H:MM clock times (no seconds); fixed CSV quoting for fields with commas.' },
   { version: 'v1.6.5.7', note: 'Nest note icon inside Total Hours cell in Weekly Summary; remove extra column. Favicon color changed to deep orange (#ea580c).' },
   { version: 'v1.6.5.6', note: 'Replace type=time with HH/MM select dropdowns — native iOS wheel picker, no overflow' },
   { version: 'v1.6.5.5', note: 'Replace type=time inputs with type=text (24h HH:MM) — iOS native time picker ignores CSS width constraints' },
@@ -298,8 +299,13 @@ export default function App() {
     return key >= weekStartKey && key <= weekEndKey
   })
 
+  const csvField = (val) => {
+    const s = String(val ?? '')
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+  }
+
   const downloadCSV = (rows, filename) => {
-    const csv = rows.map((r) => r.join(',')).join('\n')
+    const csv = rows.map((r) => r.map(csvField).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -309,78 +315,135 @@ export default function App() {
     URL.revokeObjectURL(url)
   }
 
+  const formatCsvDate = (date) =>
+    date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+
   const handleExportWeekCSV = useCallback(() => {
     const rows = [
       [`Week of ${formatShortDate(weekDays[0])} – ${formatShortDate(weekDays[6])}`],
       [],
-      ['Date', 'Clock In', 'Clock Out', 'Total Hours'],
+      ['Date', 'Clock In', 'Clock Out', 'Hours', 'Notes'],
     ]
+    // Group by day so notes appear on the first entry per day
+    const dayMap = {}
     currentWeekEntries.forEach((e) => {
-      rows.push([
-        formatShortDate(e.clockIn),
-        formatTime(e.clockIn),
-        formatTime(e.clockOut),
-        formatHours(e.clockOut.getTime() - e.clockIn.getTime()),
-      ])
+      const key = getDateKey(e.clockIn)
+      if (!dayMap[key]) dayMap[key] = []
+      dayMap[key].push(e)
     })
+    Object.entries(dayMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([key, dayEntries]) => {
+        const note = dayNotes[key] || ''
+        const dayMs = dayEntries.reduce((sum, e) => sum + e.clockOut - e.clockIn, 0)
+        dayEntries.forEach((e, i) => {
+          rows.push([
+            i === 0 ? formatCsvDate(e.clockIn) : '',
+            formatTableTime(e.clockIn),
+            formatTableTime(e.clockOut),
+            formatHours(e.clockOut - e.clockIn),
+            i === 0 ? note : '',
+          ])
+        })
+        if (dayEntries.length > 1) {
+          rows.push(['', '', 'Day Total', formatHours(dayMs), ''])
+        }
+      })
     rows.push([])
-    rows.push(['', '', 'Week Total', formatHours(weekTotalMs)])
+    rows.push(['', '', 'Week Total', formatHours(weekTotalMs), ''])
     downloadCSV(rows, `time-log-week-${weekStartKey}.csv`)
-  }, [currentWeekEntries, weekTotalMs, weekDays, weekStartKey])
+  }, [currentWeekEntries, weekTotalMs, weekDays, weekStartKey, dayNotes])
 
   const handleExportAllCSV = useCallback(() => {
-    const rows = [['Date', 'Clock In', 'Clock Out', 'Total Hours']]
-    entries.forEach((e) => {
-      rows.push([
-        formatShortDate(e.clockIn),
-        formatTime(e.clockIn),
-        formatTime(e.clockOut),
-        formatHours(e.clockOut.getTime() - e.clockIn.getTime()),
-      ])
-    })
-    rows.push([])
-    rows.push(['', '', 'Grand Total', formatHours(totalMs)])
+    const rows = [['TimeApp — Full Export'], []]
+    const months = groupEntriesByMonthAndWeek(entries)
+    const sortedMonths = [...months].reverse()
 
-    const wDays = getWeekDays(new Date())
-    const dTotals = entries.reduce((acc, e) => {
-      const key = getDateKey(e.clockIn)
-      acc[key] = (acc[key] || 0) + (e.clockOut.getTime() - e.clockIn.getTime())
-      return acc
-    }, {})
-    const wTotalMs = wDays.reduce((sum, d) => sum + (dTotals[getDateKey(d)] || 0), 0)
+    sortedMonths.forEach((month) => {
+      rows.push([`Month: ${month.label}`])
+      rows.push([])
 
-    rows.push([])
-    rows.push([`Weekly Summary — Week of ${formatShortDate(wDays[0])} – ${formatShortDate(wDays[6])}`])
-    rows.push(['Day', 'Date', 'Total Hours'])
-    wDays.forEach((d, i) => {
-      const ms = dTotals[getDateKey(d)] || 0
-      rows.push([DAY_NAMES[i], formatShortDate(d), ms > 0 ? formatHours(ms) : '0.00'])
+      const sortedWeeks = [...month.weeks].reverse()
+      sortedWeeks.forEach((week) => {
+        rows.push([`Week: ${formatWeekLabel(week.weekStart)}`])
+        rows.push(['Date', 'Clock In', 'Clock Out', 'Hours', 'Notes'])
+
+        // Group entries by day, sorted ascending
+        const dayMap = {}
+        week.entries.forEach((e) => {
+          const key = getDateKey(e.clockIn)
+          if (!dayMap[key]) dayMap[key] = []
+          dayMap[key].push(e)
+        })
+
+        Object.entries(dayMap)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .forEach(([key, dayEntries]) => {
+            const note = dayNotes[key] || ''
+            const dayMs = dayEntries.reduce((sum, e) => sum + e.clockOut - e.clockIn, 0)
+            dayEntries.forEach((e, i) => {
+              rows.push([
+                i === 0 ? formatCsvDate(e.clockIn) : '',
+                formatTableTime(e.clockIn),
+                formatTableTime(e.clockOut),
+                formatHours(e.clockOut - e.clockIn),
+                i === 0 ? note : '',
+              ])
+            })
+            if (dayEntries.length > 1) {
+              rows.push(['', '', 'Day Total', formatHours(dayMs), ''])
+            }
+          })
+
+        rows.push(['', '', 'Week Total', formatHours(week.totalMs), ''])
+        rows.push([])
+      })
+
+      rows.push(['', '', 'Month Total', formatHours(month.totalMs), ''])
+      rows.push([])
     })
-    rows.push([])
-    rows.push(['', 'Week Total', formatHours(wTotalMs)])
+
+    rows.push(['', '', 'Grand Total', formatHours(totalMs), ''])
     downloadCSV(rows, `time-log-all-${formatShortDate(new Date()).replace(/\//g, '-')}.csv`)
-  }, [entries, totalMs])
+  }, [entries, totalMs, dayNotes])
 
   const handleExportMonthCSV = useCallback((month) => {
     const rows = [[`Month: ${month.label}`], []]
-    month.weeks.forEach((week) => {
+    const sortedWeeks = [...month.weeks].reverse()
+    sortedWeeks.forEach((week) => {
       rows.push([`Week: ${formatWeekLabel(week.weekStart)}`])
-      rows.push(['Date', 'Clock In', 'Clock Out', 'Total Hours'])
+      rows.push(['Date', 'Clock In', 'Clock Out', 'Hours', 'Notes'])
+      const dayMap = {}
       week.entries.forEach((e) => {
-        rows.push([
-          formatShortDate(e.clockIn),
-          formatTime(e.clockIn),
-          formatTime(e.clockOut),
-          formatHours(e.clockOut.getTime() - e.clockIn.getTime()),
-        ])
+        const key = getDateKey(e.clockIn)
+        if (!dayMap[key]) dayMap[key] = []
+        dayMap[key].push(e)
       })
+      Object.entries(dayMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([key, dayEntries]) => {
+          const note = dayNotes[key] || ''
+          const dayMs = dayEntries.reduce((sum, e) => sum + e.clockOut - e.clockIn, 0)
+          dayEntries.forEach((e, i) => {
+            rows.push([
+              i === 0 ? formatCsvDate(e.clockIn) : '',
+              formatTableTime(e.clockIn),
+              formatTableTime(e.clockOut),
+              formatHours(e.clockOut - e.clockIn),
+              i === 0 ? note : '',
+            ])
+          })
+          if (dayEntries.length > 1) {
+            rows.push(['', '', 'Day Total', formatHours(dayMs), ''])
+          }
+        })
       rows.push([])
-      rows.push(['', '', 'Week Total', formatHours(week.totalMs)])
+      rows.push(['', '', 'Week Total', formatHours(week.totalMs), ''])
       rows.push([])
     })
-    rows.push(['', '', 'Month Total', formatHours(month.totalMs)])
+    rows.push(['', '', 'Month Total', formatHours(month.totalMs), ''])
     downloadCSV(rows, `time-log-${month.label.toLowerCase().replace(' ', '-')}.csv`)
-  }, [])
+  }, [dayNotes])
 
   const handleOpenEditEntry = (origIndex, entry) => {
     const pad = (n) => String(n).padStart(2, '0')
@@ -485,7 +548,7 @@ export default function App() {
                 onClick={() => setShowChangelog(true)}
                 className="text-lg font-normal text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
                 title="View changelog"
-              >v1.6.5.7</button>
+              >v1.6.6</button>
             </h1>
           </div>
           <p className="text-gray-500">Work Hours Tracker</p>
